@@ -1,0 +1,28 @@
+1***os.path.expanduser(os.path.join(basedir, 'master.cfg'))  expand the dir for master's configuration.
+2***buildbot checkconfig master.cfg or dir/master.cfg.verify the cfg and contains no deprecated elements.
+3***if you changed the cfg,you need to execute command 'buildbot reconfig cfg' to reload the cfg.
+4*** c['mq'] = {
+    'type' : 'wamp',
+    'router_url': 'ws://localhost:8080',
+    'realm': 'realm1',
+    'wamp_debug_level' : 'error' # valid are: none, critical, error, warn, info, debug, trace
+}buildbot uses a message-queueing system to handle communication within the master.
+5***c['logCompressionMethod'] = 'gz'  ### the method to compress the log file.
+c['logMaxSize'] = 1024*1024 # 1M
+c['logMaxTailSize'] = 32768
+c['logEncoding'] = 'utf-8'
+6***def prioritizeBuilders(buildmaster, builders):
+    ...
+c['prioritizeBuilders'] = prioritizeBuilders
+
+7***c['protocols'] = {"pb": {"port": 10000}} the port which master listens on,a worker connects to the master through TCP:port.
+8***The change_source configuration key holds all active change sources for the configuration.
+Most configurations have a single ChangeSource, watching only a single tree, e.g.,
+from buildbot.plugins import changes
+c['change_source'] = changes.PBChangeSource()
+9***from buildbot.plugins import changes
+
+c['change_source'] = changes.PBChangeSource(port=9999, user='laura', passwd='fpga')
+PBChangeSource actually listens on a TCP port for clients to connect and push change notices into the Buildmaster. This is used by the built-in buildbot sendchange notification tool, as well as several version-control hook scripts.
+10***Use isolated sequence steps to handle user's upload execution files.
+11***Another task is to write a python script to handle upload source files to git repository.
