@@ -34,8 +34,11 @@ c['protocols'] = {'pb': {'port': 9989}}
 # about source code changes.  Here we point to the local git server.
 
 #we don't use gitPoller to pull things back periodly,we use git trigger
-c['change_source'] = []
-c['change_source'].append(changes.PBChangeSource(port=9989, user='yanlf', passwd='ylf123456'))
+#c['change_source'] = []
+#c['change_source'].append(changes.GitPoller(
+#        'git@192.168.9.119:/home/git/srv/dts.git',
+#        workdir='gitpoller-workdir', branch='master',
+#        pollinterval=300))
 
 ####### SCHEDULERS
 
@@ -75,7 +78,7 @@ def nextBuild(bldr,requests):
 factory = util.BuildFactory()
 # check out the source
 factory.addStep(steps.Git(repourl='git@192.168.9.119:/home/git/srv/dts.git', mode='incremental'))
-# run the tests 
+# run the tests (note that this will require that 'trial' is installed)
 factory.addStep(steps.ShellCommand(command=["trial", "pyflakes"]))
 
 c['builders'] = []

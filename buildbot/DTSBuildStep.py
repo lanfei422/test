@@ -22,3 +22,10 @@ class RunTestScript(buildstep.ShellMixin,buildstep.BuildStep):
             cmd=yield self.makeRemoteShellCommand([self.testScript,'--force'],logEnviron=False)
             yield self.runCommand(cmd)
         defer.returnValue(cmd.results())
+        
+@defer.inlineCallbacks
+def run(self):
+    cmd = RemoteCommand(args)
+    log = yield self.addLog('output')
+    cmd.useLog(log, closeWhenFinished=True)
+    yield self.runCommand(cmd)

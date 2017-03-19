@@ -67,10 +67,10 @@ project = None
 codebase = None
 
 # Username portion of PB login credentials to send the changes to the master
-username = "change"
+username = "yanlf"
 
 # Password portion of PB login credentials to send the changes to the master
-auth = "changepw"
+auth = "ylf123456"
 
 # When converting strings to unicode, assume this encoding.
 # (set with --encoding)
