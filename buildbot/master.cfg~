@@ -6,6 +6,23 @@ from buildbot.plugins import *
 # This is a sample buildmaster config file. It must be installed as
 # 'master.cfg' in your buildmaster's base directory.
 
+#this is the costomized build step,using shell mixin to run script on worker.
+class RunTestScript(buildstep.ShellMixin,buildstep.BuildStep):
+    def __init__(self,testScript="./run.sh",**kwargs):
+        self.testScript=testScript
+        kwargs=self.setupShellMixin(kwargs,prohibitArgs=['command'])
+        buildstep.BuildStep.__init__(self,**kwargs)
+        
+    @defer.inlineCallbacks
+    def run(self):
+        cmd=yield self.makeRemoteShellCommand(command=[self.testScript])
+        yield self.runCommand(cmd)
+        
+        if cmd.didiFail():
+            cmd=yield self.makeRemoteShellCommand([self.testScript,'--force'],logEnviron=False)
+            yield self.runCommand(cmd)
+        defer.returnValue(cmd.results())
+
 # This is the dictionary that the buildmaster pays attention to. We also use
 # a shorter alias to save typing.
 c = BuildmasterConfig = {}
@@ -34,11 +51,8 @@ c['protocols'] = {'pb': {'port': 9989}}
 # about source code changes.  Here we point to the local git server.
 
 #we don't use gitPoller to pull things back periodly,we use git trigger
-#c['change_source'] = []
-#c['change_source'].append(changes.GitPoller(
-#        'git@192.168.9.119:/home/git/srv/dts.git',
-#        workdir='gitpoller-workdir', branch='master',
-#        pollinterval=300))
+c['change_source'] = []
+c['change_source'].append(changes.PBChangeSource(port=9989, user='yanlf', passwd='ylf123456'))
 
 ####### SCHEDULERS
 
@@ -78,8 +92,8 @@ def nextBuild(bldr,requests):
 factory = util.BuildFactory()
 # check out the source
 factory.addStep(steps.Git(repourl='git@192.168.9.119:/home/git/srv/dts.git', mode='incremental'))
-# run the tests (note that this will require that 'trial' is installed)
-factory.addStep(steps.ShellCommand(command=["trial", "pyflakes"]))
+# run the tests 
+factory.addStep(RunTestScript())
 
 c['builders'] = []
 c['builders'].append(
