@@ -2,6 +2,8 @@
 # ex: set filetype=python:
 
 from buildbot.plugins import *
+from buildbot.process import buildstep
+from twisted.internet import defer
 
 # This is a sample buildmaster config file. It must be installed as
 # 'master.cfg' in your buildmaster's base directory.
@@ -93,7 +95,7 @@ factory = util.BuildFactory()
 # check out the source
 factory.addStep(steps.Git(repourl='git@192.168.9.119:/home/git/srv/dts.git', mode='incremental'))
 # run the tests 
-factory.addStep(RunTestScript())
+factory.addStep(RunTestScript("./run.sh"))
 
 c['builders'] = []
 c['builders'].append(

@@ -34,3 +34,8 @@ PBChangeSource actually listens on a TCP port for clients to connect and push ch
 
 10***Use isolated sequence steps to handle user's upload execution files.
 11***Another task is to write a python script to handle upload source files to git repository.
+
+
+the git trigger,you should install future modle by using pip install future
+and pip install twisted.then copy the git-buildbot.py to git server hooks dir,rename the script to post-receive.
+

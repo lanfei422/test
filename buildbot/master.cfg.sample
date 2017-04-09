@@ -2,9 +2,28 @@
 # ex: set filetype=python:
 
 from buildbot.plugins import *
+from buildbot.process import buildstep
+from twisted.internet import defer
 
 # This is a sample buildmaster config file. It must be installed as
 # 'master.cfg' in your buildmaster's base directory.
+
+#this is the costomized build step,using shell mixin to run script on worker.
+class RunTestScript(buildstep.ShellMixin,buildstep.BuildStep):
+    def __init__(self,testScript="./run.sh",**kwargs):
+        self.testScript=testScript
+        kwargs=self.setupShellMixin(kwargs,prohibitArgs=['command'])
+        buildstep.BuildStep.__init__(self,**kwargs)
+        
+    @defer.inlineCallbacks
+    def run(self):
+        cmd=yield self.makeRemoteShellCommand(command=[self.testScript])
+        yield self.runCommand(cmd)
+        
+        if cmd.didFail():
+            cmd=yield self.makeRemoteShellCommand([self.testScript,'--force'],logEnviron=False)
+            yield self.runCommand(cmd)
+        defer.returnValue(cmd.results())
 
 # This is the dictionary that the buildmaster pays attention to. We also use
 # a shorter alias to save typing.
@@ -15,7 +34,11 @@ c = BuildmasterConfig = {}
 # The 'workers' list defines the set of recognized workers. Each element is
 # a Worker object, specifying a unique worker name and password.  The same
 # worker name and password must be configured on the worker.
-c['workers'] = [worker.Worker("example-worker", "pass")]
+c['workers'] = []
+c['workers'].append(worker.Worker("builder0-worker0", "pass"))
+c['workers'].append(worker.Worker("builder0-worker1", "pass"))
+c['workers'].append(worker.Worker("builder1-worker0", "pass"))
+c['workers'].append(worker.Worker("builder1-worker1", "pass"))
 
 # 'protocols' contains information about protocols which master will use for
 # communicating with workers. You must define at least 'port' option that workers
@@ -27,13 +50,11 @@ c['protocols'] = {'pb': {'port': 9989}}
 ####### CHANGESOURCES
 
 # the 'change_source' setting tells the buildmaster how it should find out
-# about source code changes.  Here we point to the buildbot clone of pyflakes.
+# about source code changes.  Here we point to the local git server.
 
+#we don't use gitPoller to pull things back periodly,we use git trigger
 c['change_source'] = []
-c['change_source'].append(changes.GitPoller(
-        'git://github.com/buildbot/pyflakes.git',
-        workdir='gitpoller-workdir', branch='master',
-        pollinterval=300))
+c['change_source'].append(changes.PBChangeSource(port=9989, user='yanlf', passwd='ylf123456'))
 
 ####### SCHEDULERS
 
@@ -45,12 +66,26 @@ c['schedulers'].append(schedulers.SingleBranchScheduler(
                             name="all",
                             change_filter=util.ChangeFilter(branch='master'),
                             treeStableTimer=None,
-                            builderNames=["runtests"]))
+                            builderNames=["builder0","builder1"]))
 c['schedulers'].append(schedulers.ForceScheduler(
                             name="force",
                             builderNames=["runtests"]))
 
 ####### BUILDERS
+
+#builders' priority which decides which builder should run first when they are idle.
+def prioritizeBuilders(buildermaster,builders):
+	"""define a list of builders,and define which should run first,
+	the original logic is the pick up the next build which has the oldest build request.	
+	"""
+	builderPriorities={"builder0":0,"builder1":1,}
+	builders.sort(key=lambda b:builderPriorities.get(b.name,0))
+	return builders
+c['prioritizeBuilders']=prioritizeBuilders
+
+#simply return the earliest build task.
+def nextBuild(bldr,requests):
+	return requests[0]
 
 # The 'builders' list defines the Builders, which tell Buildbot how to perform a build:
 # what steps, and which workers can execute them.  Note that any particular build will
@@ -58,14 +93,32 @@ c['schedulers'].append(schedulers.ForceScheduler(
 
 factory = util.BuildFactory()
 # check out the source
-factory.addStep(steps.Git(repourl='git://github.com/buildbot/pyflakes.git', mode='incremental'))
-# run the tests (note that this will require that 'trial' is installed)
-factory.addStep(steps.ShellCommand(command=["trial", "pyflakes"]))
+factory.addStep(steps.Git(repourl='git@192.168.9.119:/home/git/srv/dts.git', mode='incremental'))
+# run the tests 
+#factory.addStep(steps.ShellSequence(
+#	commands=[
+#		util.ShellArg(command=['cd ./source'])
+#		util.ShellArg(command=['make','clear'])
+#		util.ShellArg(command=['make'],logfile='make')
+#		util.ShellArg(command=['cd ..'])
+#		]
+#))
+factory.addStep(RunTestScript("./script/run.sh"))
 
 c['builders'] = []
 c['builders'].append(
+	util.BuilderConfig(name="builder0",
+	workernames=["builder0-worker0","builder0-worker1"],
+	nextBuild=nextBuild,
+	factory=factory))
+c['builders'].append(
+	util.BuilderConfig(name="builder1",
+	workernames=["builder1-worker0","builder1-worker1"],
+	nextBuild=nextBuild,
+	factory=factory))
+c['builders'].append(
     util.BuilderConfig(name="runtests",
-      workernames=["example-worker"],
+      workernames=["builder0-worker0","builder1-worker1"],
       factory=factory))
 
 ####### BUILDBOT SERVICES
@@ -81,8 +134,8 @@ c['services'] = []
 # the 'title' string will appear at the top of this buildbot installation's
 # home pages (linked to the 'titleURL').
 
-c['title'] = "Pyflakes"
-c['titleURL'] = "https://launchpad.net/pyflakes"
+c['title'] = "Distributed Testing System"
+c['titleURL'] = "https://github.com/lanfei422/test"
 
 # the 'buildbotURL' string should point to the location where the buildbot's
 # internal web server is visible. This typically uses the port number set in
